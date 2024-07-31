@@ -1,28 +1,31 @@
-#!/usr/bin/env python3
-import os
+from pathlib import Path
 
 import aws_cdk as cdk
+import tomllib
+from aws_cdk import Tags
 
 from private_ec2.private_ec2_stack import PrivateEc2Stack
 
 
+def add_name_tag(scope):  # noqa: ANN001, ANN201
+    for child in scope.node.children:
+        if cdk.Resource.is_resource(child):
+            tag_value = child.node.path.replace("/", "-").replace("_", "-")
+            Tags.of(child).add("Name", tag_value)
+        add_name_tag(child)
+
+
+with (Path.cwd() / "pyproject.toml").open("rb") as f:
+    project = tomllib.load(f)["project"]["name"]
+
 app = cdk.App()
-PrivateEc2Stack(app, "PrivateEc2Stack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
+PrivateEc2Stack(
+    scope=app,
+    construct_id=f"{project.replace('_', '-')}",
+)
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
-
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
-
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
-
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
-
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+Tags.of(app).add("Project", project)
+Tags.of(app).add("ManagedBy", "cdk")
+add_name_tag(app)
 
 app.synth()
