@@ -1,7 +1,7 @@
+import tomllib
 from pathlib import Path
 
 import aws_cdk as cdk
-import tomllib
 from aws_cdk import Tags
 
 from private_ec2.private_ec2_stack import PrivateEc2Stack

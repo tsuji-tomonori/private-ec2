@@ -4,7 +4,6 @@ from constructs import Construct
 
 
 class PrivateEc2Stack(Stack):
-
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:  # noqa: ANN101, ANN003
         super().__init__(scope, construct_id, **kwargs)
 
@@ -68,4 +67,3 @@ class PrivateEc2Stack(Stack):
             "start-session",
             value=f"aws ssm start-session --target {host.instance_id}",
         )
-
