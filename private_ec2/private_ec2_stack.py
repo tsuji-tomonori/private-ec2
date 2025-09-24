@@ -1,5 +1,6 @@
 from aws_cdk import CfnOutput, Stack
 from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_logs as logs
 from constructs import Construct
 
 
@@ -24,6 +25,20 @@ class PrivateEc2Stack(Stack):
                 ),
             ],
             nat_gateways=0,
+        )
+
+        # Create VPC Flow Logs to satisfy AwsSolutions-VPC7
+        log_group = logs.LogGroup(
+            self,
+            "vpc-flow-logs",
+            retention=logs.RetentionDays.ONE_WEEK,
+        )
+
+        ec2.FlowLog(
+            self,
+            "vpc-flow-log",
+            resource_type=ec2.FlowLogResourceType.from_vpc(vpc),
+            destination=ec2.FlowLogDestination.to_cloud_watch_logs(log_group),
         )
 
         # create vpc endpoint
