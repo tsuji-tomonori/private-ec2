@@ -1,6 +1,7 @@
 from aws_cdk import CfnOutput, Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_logs as logs
+from cdk_nag import NagSuppressions
 from constructs import Construct
 
 
@@ -74,6 +75,27 @@ class PrivateEc2Stack(Stack):
                         encrypted=True,
                     ),
                 ),
+            ],
+        )
+
+        # Suppress AwsSolutions-IAM5 for SSM permissions required by BastionHostLinux
+        # These wildcard permissions are necessary for SSM Session Manager connectivity
+        NagSuppressions.add_resource_suppressions(
+            host.role.node.find_child("DefaultPolicy"),
+            [
+                {
+                    "id": "AwsSolutions-IAM5",
+                    "reason": (
+                        "SSM Session Manager requires ec2messages:* and ssmmessages:* "
+                        "permissions for secure shell access. Resource wildcard is "
+                        "required for SSM service functionality."
+                    ),
+                    "appliesTo": [
+                        "Action::ec2messages:*",
+                        "Action::ssmmessages:*",
+                        "Resource::*"
+                    ],
+                }
             ],
         )
 
