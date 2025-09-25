@@ -8,7 +8,7 @@
 | ~~2~~ | ~~AwsSolutions-IAM5~~ | ~~/PrivateEc2Stack/instance001/Resource/InstanceRole/DefaultPolicy/Resource~~ | ~~IAMポリシーでワイルドカード権限(ssmmessages:*)が使用されている~~ | **抑制完了** | SSM Session Manager接続に必要な権限のため抑制 |
 | ~~3~~ | ~~AwsSolutions-IAM5~~ | ~~/PrivateEc2Stack/instance001/Resource/InstanceRole/DefaultPolicy/Resource~~ | ~~IAMポリシーでワイルドカード権限(ec2messages:*)が使用されている~~ | **抑制完了** | SSM Session Manager接続に必要な権限のため抑制 |
 | ~~4~~ | ~~AwsSolutions-IAM5~~ | ~~/PrivateEc2Stack/instance001/Resource/InstanceRole/DefaultPolicy/Resource~~ | ~~IAMポリシーでワイルドカードリソース(*)が使用されている~~ | **抑制完了** | SSM Session Manager接続に必要な権限のため抑制 |
-| 5 | AwsSolutions-EC28 | /PrivateEc2Stack/instance001/Resource/Resource | EC2インスタンスで詳細監視が有効化されていない | EC2インスタンス設定 | コンピュートリソースの適切な監視と管理のため |
+| ~~5~~ | ~~AwsSolutions-EC28~~ | ~~/PrivateEc2Stack/instance001/Resource/Resource~~ | ~~EC2インスタンスで詳細監視が有効化されていない~~ | **修正完了** | EC2インスタンスの詳細監視を有効化 |
 | 6 | AwsSolutions-EC29 | /PrivateEc2Stack/instance001/Resource/Resource | EC2インスタンスが終了保護無効でASGに属していない | EC2インスタンス設定 | 誤った終了からインスタンスを保護するため |
 
 ## 修正前のWARN
@@ -75,3 +75,26 @@ NagSuppressions.add_resource_suppressions_by_path(
 ```
 
 **効果**: SSM Session Manager機能に必要なワイルドカード権限（ec2messages:*、ssmmessages:*、Resource:*）が適切に文書化された理由と共に抑制され、CDK Nag違反が解消された。
+
+### AwsSolutions-EC28 (修正完了)
+**問題**: EC2インスタンスで詳細監視が有効化されていない
+**修正内容**: BastionHostLinux の EC2インスタンスで詳細監視を有効化
+**修正ファイル**: `private_ec2/private_ec2_stack.py`
+**修正日**: 2025-09-25
+
+```python
+# 修正前: 詳細監視が無効
+host = ec2.BastionHostLinux(
+    self,
+    "instance001",
+    vpc=vpc,
+    # 他のパラメータ...
+)
+
+# 修正後: CloudFormationリソースにアクセスして詳細監視を有効化
+# Enable detailed monitoring to satisfy AwsSolutions-EC28
+cfn_instance = host.instance.node.default_child
+cfn_instance.monitoring = True
+```
+
+**効果**: EC2インスタンスで詳細監視が有効になり、1分間隔でのメトリクス収集によってコンピュートリソースの適切な監視と管理が可能になった。

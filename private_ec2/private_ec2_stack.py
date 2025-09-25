@@ -78,6 +78,11 @@ class PrivateEc2Stack(Stack):
             ],
         )
 
+        # Enable detailed monitoring to satisfy AwsSolutions-EC28
+        # Access the underlying CloudFormation resource and enable monitoring
+        cfn_instance = host.instance.node.default_child
+        cfn_instance.monitoring = True
+
         # Suppress AwsSolutions-IAM5 for SSM permissions required by BastionHostLinux
         # These wildcard permissions are necessary for SSM Session Manager connectivity
         NagSuppressions.add_resource_suppressions(
