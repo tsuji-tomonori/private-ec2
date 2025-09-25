@@ -9,7 +9,7 @@
 | ~~3~~ | ~~AwsSolutions-IAM5~~ | ~~/PrivateEc2Stack/instance001/Resource/InstanceRole/DefaultPolicy/Resource~~ | ~~IAMポリシーでワイルドカード権限(ec2messages:*)が使用されている~~ | **抑制完了** | SSM Session Manager接続に必要な権限のため抑制 |
 | ~~4~~ | ~~AwsSolutions-IAM5~~ | ~~/PrivateEc2Stack/instance001/Resource/InstanceRole/DefaultPolicy/Resource~~ | ~~IAMポリシーでワイルドカードリソース(*)が使用されている~~ | **抑制完了** | SSM Session Manager接続に必要な権限のため抑制 |
 | ~~5~~ | ~~AwsSolutions-EC28~~ | ~~/PrivateEc2Stack/instance001/Resource/Resource~~ | ~~EC2インスタンスで詳細監視が有効化されていない~~ | **修正完了** | EC2インスタンスの詳細監視を有効化 |
-| 6 | AwsSolutions-EC29 | /PrivateEc2Stack/instance001/Resource/Resource | EC2インスタンスが終了保護無効でASGに属していない | EC2インスタンス設定 | 誤った終了からインスタンスを保護するため |
+| ~~6~~ | ~~AwsSolutions-EC29~~ | ~~/PrivateEc2Stack/instance001/Resource/Resource~~ | ~~EC2インスタンスが終了保護無効でASGに属していない~~ | **修正完了** | EC2インスタンスの終了保護をL1プロパティで有効化 |
 
 ## 修正前のWARN
 
@@ -98,3 +98,20 @@ cfn_instance.monitoring = True
 ```
 
 **効果**: EC2インスタンスで詳細監視が有効になり、1分間隔でのメトリクス収集によってコンピュートリソースの適切な監視と管理が可能になった。
+
+### AwsSolutions-EC29 (修正完了)
+**問題**: EC2インスタンスが終了保護無効でASGに属していない
+**修正内容**: L1 CfnInstanceプロパティで終了保護を有効化
+**修正ファイル**: `private_ec2/private_ec2_stack.py`
+**修正日**: 2025-09-25
+
+```python
+# 修正前: add_overrideを使用（CDK Nagが検出しにくい）
+cfn_instance.add_override("Properties.DisableApiTermination", True)
+
+# 修正後: L1プロパティを直接使用（CDK Nagが正しく検出）
+cfn_instance = host.instance.node.default_child
+cfn_instance.disable_api_termination = True
+```
+
+**効果**: EC2インスタンスに終了保護が設定され、誤った操作による終了からインスタンスが保護される。L1プロパティを使用することで、CDK NagがDisableApiTermination設定を正しく認識し、抑制なしでルールを通過できる。
