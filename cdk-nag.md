@@ -15,9 +15,9 @@
 
 | No.  | ルール名 | リソース | 問題の内容 | 対応が必要な箇所 | 対応が必要な理由 |
 | ---- | -------- | -------- | ---------- | ---------------- | ---------------- |
-| 1 | AwsSolutions-EC23 | /PrivateEc2Stack/endpoint001/SecurityGroup/Resource | セキュリティグループのバリデーションが内部関数参照により失敗 | セキュリティグループ設定 | バリデーションエラーの抑制または設定の見直しが必要 |
-| 2 | AwsSolutions-EC23 | /PrivateEc2Stack/endpoint002/SecurityGroup/Resource | セキュリティグループのバリデーションが内部関数参照により失敗 | セキュリティグループ設定 | バリデーションエラーの抑制または設定の見直しが必要 |
-| 3 | AwsSolutions-EC23 | /PrivateEc2Stack/endpoint003/SecurityGroup/Resource | セキュリティグループのバリデーションが内部関数参照により失敗 | セキュリティグループ設定 | バリデーションエラーの抑制または設定の見直しが必要 |
+| ~~1~~ | ~~AwsSolutions-EC23~~ | ~~/PrivateEc2Stack/endpoint001/SecurityGroup/Resource~~ | ~~セキュリティグループのバリデーションが内部関数参照により失敗~~ | **抑制完了** | CDK Nagのバリデーション制限により抑制が必要 |
+| ~~2~~ | ~~AwsSolutions-EC23~~ | ~~/PrivateEc2Stack/endpoint002/SecurityGroup/Resource~~ | ~~セキュリティグループのバリデーションが内部関数参照により失敗~~ | **抑制完了** | CDK Nagのバリデーション制限により抑制が必要 |
+| ~~3~~ | ~~AwsSolutions-EC23~~ | ~~/PrivateEc2Stack/endpoint003/SecurityGroup/Resource~~ | ~~セキュリティグループのバリデーションが内部関数参照により失敗~~ | **抑制完了** | CDK Nagのバリデーション制限により抑制が必要 |
 
 ## 修正履歴
 
@@ -115,3 +115,59 @@ cfn_instance.disable_api_termination = True
 ```
 
 **効果**: EC2インスタンスに終了保護が設定され、誤った操作による終了からインスタンスが保護される。L1プロパティを使用することで、CDK NagがDisableApiTermination設定を正しく認識し、抑制なしでルールを通過できる。
+
+### AwsSolutions-EC23 (抑制完了)
+**問題**: VPCエンドポイントのセキュリティグループでCDK Nagのバリデーションが内部関数参照により失敗
+**対応方法**: CdkNagValidationFailureを抑制し、適切なセキュリティグループ設定を実装
+**修正ファイル**: `private_ec2/private_ec2_stack.py`
+**修正日**: 2025-09-25
+
+```python
+# 修正前: VPCエンドポイントがデフォルトのセキュリティグループを使用
+ec2.InterfaceVpcEndpoint(
+    self,
+    "endpoint001",
+    service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
+    vpc=vpc,
+)
+
+# 修正後: 明示的なセキュリティグループを作成し、VPC CIDRのみからのアクセスを許可
+endpoint_sg = ec2.SecurityGroup(
+    self,
+    "endpoint-sg",
+    vpc=vpc,
+    description="Security group for VPC endpoints - restrict to VPC CIDR only",
+    allow_all_outbound=False,
+)
+
+endpoint_sg.add_ingress_rule(
+    peer=ec2.Peer.ipv4("10.0.0.0/16"),
+    connection=ec2.Port.tcp(443),
+    description="Allow HTTPS from VPC CIDR (10.0.0.0/16)",
+)
+
+# CDK Nagバリデーション制限の抑制
+NagSuppressions.add_resource_suppressions(
+    endpoint_sg,
+    [
+        {
+            "id": "CdkNagValidationFailure",
+            "reason": (
+                "CDK Nag validation failure occurs due to intrinsic function "
+                "references. Security group is configured to allow HTTPS from "
+                "VPC CIDR only (10.0.0.0/16), not 0.0.0.0/0."
+            ),
+        }
+    ],
+)
+
+ec2.InterfaceVpcEndpoint(
+    self,
+    "endpoint001",
+    service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
+    vpc=vpc,
+    security_groups=[endpoint_sg],
+)
+```
+
+**効果**: VPCエンドポイントのセキュリティグループが適切に設定され、VPC CIDR（10.0.0.0/16）からのHTTPSアクセスのみを許可し、0.0.0.0/0からのアクセスを防ぐ。CDK Nagのバリデーション制限により抑制が必要だが、実際のセキュリティ設定は適切に実装されている。
